@@ -253,14 +253,12 @@ function Client({ pnum }) {
 
   async function submit() {
     if (!action.trim()||submitted) return;
-    const s = await get();
-    await put({ ...s, [myKey]:action.trim() });
+    await patch({ [myKey]: action.trim() });
     setSubmitted(true); await refresh();
   }
 
   async function cancel() {
-    const s = await get();
-    await put({ ...s, [myKey]:null });
+    await patch({ [myKey]: null });
     setSubmitted(false); setAction(""); await refresh();
   }
 
