@@ -137,6 +137,33 @@ function CharSheet({ char, isMe }) {
   );
 }
 
+// ── InitPanel ────────────────────────────────────────────────────────────────
+function InitPanel({ sess, buildInitJson }) {
+  const [copied, setCopied] = useState(false);
+  const json = buildInitJson();
+
+  function copy() {
+    navigator.clipboard?.writeText(json).catch(()=>{
+      const el = document.createElement("textarea"); el.value = json;
+      document.body.appendChild(el); el.select(); document.execCommand("copy"); document.body.removeChild(el);
+    });
+    setCopied(true); setTimeout(()=>setCopied(false), 2500);
+  }
+
+  return (
+    <div style={{ border:`1px solid ${C.gold}`, background:"#0c0a00", padding:16 }}>
+      <div style={{ fontFamily:cinzel, fontSize:10, color:C.gold, letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:4 }}>✦ Les deux personnages sont prêts</div>
+      <div style={{ fontSize:12, color:C.muted, fontStyle:"italic", marginBottom:12, fontFamily:crimson }}>
+        Colle le JSON ci-dessous dans le chat avec Claude pour lancer la partie.
+      </div>
+      <pre style={{ background:C.bg3, border:`1px solid ${C.borderGold}`, padding:"10px 12px", fontSize:10, color:C.parchment, whiteSpace:"pre-wrap", wordBreak:"break-all", lineHeight:1.6, maxHeight:200, overflowY:"auto", margin:"0 0 10px 0", fontFamily:"monospace" }}>{json}</pre>
+      <button onClick={copy} style={{ width:"100%", padding:"11px", fontFamily:cinzel, fontSize:11, letterSpacing:"0.2em", textTransform:"uppercase", background:copied?"#0a3a0a":C.gold, border:`1px solid ${copied?"#2ecc71":C.gold}`, color:copied?"#2ecc71":"#0a0808", cursor:"pointer" }}>
+        {copied ? "✓ Copié — Colle dans le chat !" : "⎘ Copier le JSON d'initialisation"}
+      </button>
+    </div>
+  );
+}
+
 // ── PlayerSelect ──────────────────────────────────────────────────────────────
 function PlayerSelect({ onSelect }) {
   const [pnum, setPnum]   = useState(null);
@@ -248,8 +275,19 @@ function Client({ pnum }) {
   const otherChar = pnum===1 ? sess?.p2 : sess?.p1;
   const myName    = myChar?.class ? myChar.name : `Joueur ${pnum}`;
   const otherName = otherChar?.class ? otherChar.name : `Joueur ${pnum===1?2:1}`;
-  const otherReady  = !!otherChar?.class;
-  const bothReady   = sess?.action_p1 && sess?.action_p2;
+  const otherReady   = !!otherChar?.class;
+  const bothCharsReady = myChar?.class && otherChar?.class && sess?.turn === 0 && !sess?.scene?.includes("Tour");
+  const bothReady    = sess?.action_p1 && sess?.action_p2;
+
+  function buildInitJson() {
+    const p1 = sess?.p1, p2 = sess?.p2;
+    return JSON.stringify({
+      INSTRUCTION: "Colle ce JSON dans le chat Claude pour lancer la partie",
+      p1: { nom: p1?.name, classe: p1?.class, histoire: CLASSES.find(c=>c.id===p1?.classId)?.story, disposition: p1?.disposition, stats: { hp: p1?.hp, hunger: p1?.hunger, fatigue: p1?.fatigue }, statuts: p1?.status, inventaire: p1?.inventory },
+      p2: { nom: p2?.name, classe: p2?.class, histoire: CLASSES.find(c=>c.id===p2?.classId)?.story, disposition: p2?.disposition, stats: { hp: p2?.hp, hunger: p2?.hunger, fatigue: p2?.fatigue }, statuts: p2?.status, inventaire: p2?.inventory },
+      regles: "Monde dark fantasy brutal. Réalisme absolu. Mort permanente. Fusionner les actions des deux joueurs. Répondre en JSON strict selon le format habituel."
+    }, null, 2);
+  }
 
   async function submit() {
     if (!action.trim()||submitted) return;
@@ -357,6 +395,11 @@ function Client({ pnum }) {
             <span style={{ fontSize:12, color:C.muted, fontStyle:"italic" }}>En attente que Joueur {pnum===1?2:1} crée son personnage...</span>
             <button onClick={refresh} style={{ background:C.gold, border:"none", color:"#0a0808", fontFamily:cinzel, fontSize:9, padding:"5px 10px", cursor:"pointer" }}>↻ SYNC</button>
           </div>
+        )}
+
+        {/* Init JSON — shown when both chars ready and game not yet started */}
+        {bothCharsReady && (
+          <InitPanel sess={sess} buildInitJson={buildInitJson} />
         )}
 
         {/* Scene */}
